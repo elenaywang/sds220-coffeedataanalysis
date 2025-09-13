@@ -1,0 +1,365 @@
+
+---
+title: "SDS 220 Project"
+author: "Elena Wang, Feiran Chang"
+date: "Last updated on `r Sys.Date()`"
+output:
+  html_document:
+    fig_caption: yes
+    theme: lumen
+    toc: yes
+    toc_depth: 2
+    df_print: kable
+    toc_float:
+      collapsed: no
+    number_sections: yes
+---
+
+```{r, include=FALSE}
+# Do not edit this code block/chunk (unless you know what you're doing)
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning = FALSE, fig.width = 16/2.5, fig.height = 9/2.5)
+```
+
+
+```{r}
+# Make sure you have all these packages installed:
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(moderndive)
+library(knitr)
+
+# Add any additionally needed packages here:
+
+```
+
+
+```{r, out.width="100%"}
+# Change the URL here to point a relevant image:
+include_graphics("https://www.worldatlas.com/r/w960-q80/upload/12/f8/83/coffee-cup.jpg")
+```
+
+
+
+***
+
+
+
+# Introduction 
+
+More than ever, coffee is becoming an integral part of the lives of American adults. According to the 2020 National Coffee Data Trends (NCDT) Report by the National Coffee Association, overall coffee consumption has increased by 5% since 2015, and now, about 60% of Americans drink coffee daily. The NCDT report also found that Americans are increasingly showing preference for gourmet coffee, as around 60% of coffee served in the US now is brewed with premium coffee beans^[Foley, Sinead. [NCA releases Atlas of American Coffee](https://www.ncausa.org/Newsroom/NCA-releases-Atlas-of-American-Coffee). National Coffee Association. March 26, 2020.]. Considering the ubiquity of coffee consumption and the growing preference for high quality coffee, this project aims to understand the impact of multiple coffee grading metrics on the overall cup score of coffee samples.
+
+The dataset we are using is the Coffee Ratings dataset, one of the ten vetted datasets approved for use in this project. The data in this dataset was obtained from the Coffee Quality Institute's database in 2018. The Coffee Quality Institute is a non-profit organization that administers evaluations to identify coffees of particularly high quality^[[Coffee Quality Institute](https://www.coffeeinstitute.org/) website]. For our analysis, we will be focusing on the coffee processing method and flavor score as the explanatory variables, and the total cup points as the outcome variable.
+
+
+***
+
+
+
+# Exploratory data analysis
+
+```{r}
+# Load CSV file from the web and clean data:
+coffee_ratings_data <- read_csv("https://wjhopper.github.io/SDS-201/data/coffee_ratings.csv") %>% 
+  # Select only the needed variables:
+  select(total_cup_points, processing_method, flavor) %>% 
+  # Drop rows with missing data for processing_method
+  filter(!is.na(processing_method))
+```
+
+
+## Describe data
+
+Each row in our dataset corresponds to one coffee sample. We had an original sample size of 1339 different coffee samples. However, since 170 of these rows were missing processing method or flavor score data, we dropped these from consideration. No information was provided along with the dataset to explain why certain data were missing, so we cannot comment on the impact of dropping these missing values.
+
+Our sample size for data in consideration is 1169 (Table 1). Our outcome variable $y$ is the total cup points, which refers to the overall quality grade of the coffee sample. Our numerical explanatory variable $x_1$ is the flavor score, which refers to the quality of the coffee sample's flavor. The categorical explanatory variable $x_2$ is the processing method, consisting of 5 levels: pulped natural/honey, semi-washed/semi-pulped, natural/dry, washed/wet, and other.
+
+Below is a snapshot of five randomly selected rows from our data set:
+```{r}
+# Shows a random sample of 5 rows of the data:
+coffee_ratings_data %>% 
+  sample_n(5)
+```
+
+
+## Summary statistics
+
+For all coffee samples in the data set, the total cup points (overall quality score) range from 59.83 to 90.58. The mean value of total cup points is 82.05562, with a standard deviation of 2.709014 (Table 1). Interestingly, coffee with processing method of pulped natural/honey has the highest mean value of overall quality score (82.80786), but has the smallest sample size n = 14 (Table 2).
+
+Table 1. Summary statistics of total cup points for coffee samples
+```{r}
+# Output a table of summary statistics:
+coffee_ratings_data %>% summarize(n = n(), 
+                                  mean = mean(total_cup_points), 
+                                  median = median(total_cup_points), 
+                                  sd = sd(total_cup_points), 
+                                  min = min(total_cup_points), 
+                                  max = max(total_cup_points))
+```
+
+Table 2. Summary statistics of total cup points for coffee split by different processing method
+```{r}
+# Output a table of summary statistics, but this time
+# split by the different levels of the categorical variable:
+summary_total_cup_points <- coffee_ratings_data %>%
+  group_by(processing_method) %>%
+  summarize(n = n(), 
+            mean = mean(total_cup_points), 
+            median = median(total_cup_points), 
+            sd = sd(total_cup_points), 
+            min = min(total_cup_points), 
+            max = max(total_cup_points)) %>%
+  arrange(desc(mean))
+summary_total_cup_points
+```
+
+
+## Data visualizations
+
+```{r, fig.cap = "Figure 1: Distribution of overall quality score", fig.align = "center"}
+# Visualize the distribution of outcome variable:
+ggplot(data = coffee_ratings_data, mapping = aes(x = total_cup_points)) +
+  geom_histogram(color = "white", fill = "steelblue", binwidth = 1.5) +
+  labs(x = "Overall Quality Score (cup points)", y = "Count",
+       title = "Distribution of overall quality score")
+```
+
+
+As shown in Figure 1, the distribution of the overall quality score (total cup points) was slightly skewed to left. The mean of the overall quality score was 82.06, and the median of overall quality score was 82.42. Additionally, we noticed a small cluster of data at the lower end of the distribution around a quality score of 70 that was separated from the rest of the data.
+
+
+```{r, fig.cap = "Figure 2: Scatter plot of relationship between overall quality score and flavor score of coffee", fig.align = "center"}
+# Vsualize the relationship between outcome variable and numerical explanatory variable:
+ggplot(data = coffee_ratings_data, mapping = aes(x = flavor, y = total_cup_points)) + 
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) + 
+  labs(x = "Flavor Score", y = "Overall Quality Score",
+       title = "Scatter plot of relationship between overall quality score and flavor score of coffee") +
+  theme(plot.title = element_text(size = 10))
+```
+
+
+We generated a scatterplot (Figure 2) to show the relationship between the overall quality score (numerical outcome variable) and the flavor score (numerical explanatory variable). When flavor score increased, there was an associated increase in overall quality score, meaning that there was a positive correlation between flavor score and overall quality score.
+
+
+```{r, fig.cap = "Figure 3: Boxplot of relationship between overall quality score and processing methods of coffee", fig.align = "center"}
+# Visualize the relationship between outcome variable and categorical explanatory variable:
+ggplot(data = coffee_ratings_data, mapping = aes(x = factor(processing_method), y = total_cup_points)) +
+  geom_boxplot() + 
+  labs(x = "Processing Method", y = "Overall Quality Score",
+       title = "Boxplot of relationship between overall quality score and processing methods of coffee") +
+  theme(plot.title = element_text(size = 7)) +
+  coord_flip()
+```
+
+
+As shown in Figure 3, the side-by-side boxplots display the relationship between overall quality score (numerical outcome variable) and processing method of coffee (categorical explanatory variable). There was no significant association between the two variables. However, we noticed that coffee with the processing method of pulped natural/honey or semi-washed/semi-pulped tended to have a lower variance in quality score as quantified by their standard deviations.
+
+
+```{r, fig.cap = "Figure 4: Interaction model for relationship between overall quality score and both flavor score and processing method", fig.align = "center"}
+# Visualize interaction model:
+ggplot(coffee_ratings_data, aes(x = flavor, y = total_cup_points, color = processing_method)) +
+  geom_point() +
+  labs(x = "Flavor Score", y = "Overall Quality Score", color = "Processing Method",
+       title = "Interaction model for relationship between overall quality score and both flavor score and processing method") +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme(plot.title = element_text(size = 8))
+```
+
+
+We generated a colored scatterplot (Figure 4) that depicts the relationship between overall quality score (numerical outcome variable) and both flavor score (numerical explanatory variable) and processing method (categorical explanatory variable). This scatterplot uses the interaction model, meaning that every processing method has a different slope. According to the figure, the regression line for coffee with the "Other" processing method (the yellow line) has a visibly different slope compared with the other processing methods.
+ 
+ 
+```{r, fig.cap = "Figure 5: Parallel slopes model for relationship between overall quality score and both flavor score and processing method", fig.align = "center"}
+# Visualize parallel slopes model:
+ggplot(coffee_ratings_data, aes(x = flavor, y = total_cup_points, color = processing_method)) +
+  geom_point() +
+  labs(x = "Flavor Score", y = "Overall Quality Score", color = "Processing Method",
+       title = "Parallel slopes model for relationship between overall quality score and both flavor score and processing method") +
+  geom_parallel_slopes(se = FALSE) +
+  theme(plot.title = element_text(size = 7))
+```
+
+
+Finally, we generated a colored scatterplot (Figure 5) that depicts the relationship between overall quality score (numerical outcome variable) and the two explanatory variables using the parallel slopes model, meaning that every processing method shares the same slope. 
+
+
+## Initial conclusions
+
+In Figure 4, the slopes of the processing methods of natural/dry (orange red line), pulped natural/honey (green line), semi-washed/semi-pulped (blue line), and washed/wet (pink line) are similar, so the parallel slopes model would be best for predicting these four processing methods. 
+
+However, Figure 4 also shows that the slope of the "Other" processing method is very different from the slopes of the rest of the processing methods. When we look at the data, we can see that the "Other" processing method only corresponds to 26 data points out of the total sample size of 1169. Since this is a small amount of data compared to the entire dataset, we decided to drop all the data points for the "Other" processing method to simplify our analysis. This allows us to use the parallel slopes model on the remaining four processing methods.
+
+Below is a new scatterplot of the parallel slopes model after dropping the data for the "Other" processing method:
+
+```{r, fig.cap = "Figure 6: Parallel slopes model with four processing methods", fig.align = "center"}
+# Removing rows of the "Other" processing method
+coffee_ratings_data_noother <- coffee_ratings_data %>% 
+  filter(!processing_method == "Other")
+
+# Visualize parallel slopes model:
+ggplot(coffee_ratings_data_noother, aes(x = flavor, y = total_cup_points, color = processing_method)) +
+  geom_point() +
+  labs(x = "Flavor Score", y = "Overall Quality Score", color = "Processing Method",
+       title = "Parallel slopes model with four processing methods") +
+  geom_parallel_slopes(se = FALSE)
+```
+
+So in conclusion, we dropped the data for the "Other" processing method so that we could use the parallel slopes model to predict just the remaining four processing methods. In general, the data followed a positive correlation: as flavor score increased, there was an associated increase in overall quality score (total cup points) of coffee.
+
+
+
+***
+
+
+
+# Multiple linear regression
+
+## Regression table
+
+We chose the parallel slopes model to predict the total cup points (overall quality score) of coffee with four different processing methods (natural/dry, pulped natural/honey, semi-washed/semi-pulped, and washed/wet).
+
+
+Table 3. Regression table of parallel slopes model
+```{r}
+# Fit your regression model and show the regression table. 
+parallel_slopes_model <- lm(total_cup_points ~ flavor + processing_method, data = coffee_ratings_data_noother)
+get_regression_table(parallel_slopes_model)
+```
+
+Below is the regression equation for estimating the overall quality score:
+$$
+\widehat{y} = 
+32.011
++ 6.629 \cdot \text{flavor}  
++ 1.007 \cdot \mathbb{1}_{\text{is pulped natural / honey}}(x)
++ 0.328 \cdot \mathbb{1}_{\text{is semi-washed / semi-pulped}}(x)
++ 0.338 \cdot \mathbb{1}_{\text{is washed / wet}}(x)
+$$
+
+
+## Interpreting regression coefficients
+
+In the following list, we have interpreted all regression coefficients in the `estimate` column of the above regression table (Table 3):
+
+1. The `intercept` 32.011 is the estimate of the overall quality score for the natural/dry processing method, which is the baseline group, at a flavor score of 0.
+1. The `flavor` coefficient 6.629 is the common slope for all of the regression lines, as determined by the slope of the natural/dry processing method. This means that when the flavor score increases by 1 unit, the estimated overall quality score will increase by 6.629 units.
+1. The `processing_method: Pulped natural / honey` coefficient 1.007 is the offset in the intercept for the pulped natural/honey processing method relative to the baseline of the natural/dry processing method.
+1. The `processing_method: Semi-washed / Semi-pulped` coefficient 0.328 is the offset in the intercept for the semi-washed/semi-pulped processing method relative to the baseline of the natural/dry processing method.
+1. The `processing_method: Washed / Wet` coefficient 0.338 is the offset in the intercept for the washed/wet processing method relative to the baseline of the natural/dry processing method.
+
+
+
+## Inference for multiple regression
+
+In the following list, we have interpreted the p-value and confidence interval for the non-intercept term, `flavor`, in the above regression table (Table 3):
+
+1. The p-value for `flavor` is 0. This means that for any significance value $\alpha$, we would reject the null hypothesis $H_0$ that there is no relationship between flavor score and overall quality score for each processing method in favor of the alternative hypothesis $H_A$ that there is a significant relationship. Additionally, since the value of `flavor`---which is the slope for all regression lines---is positive, the evidence also suggests that the relationship is positive. This will apply to all four processing methods since we used the parallel slopes model and `flavor` is the slope that they all share.
+1. The 95% confidence interval for `flavor` lies between 6.370 and 6.888. This is the possible range of values that the slope for our model, represented by `flavor`, can be. Since the confidence interval does not include zero and lies completely above zero, this suggests that there is a meaningful relationship between flavor score and overall quality score for each processing method, and that relationship is positive.  This will also apply to all four processing methods since we used the parallel slopes model and `flavor` is the slope that they all share.
+
+
+
+## Conditions for inference for regression
+
+
+### Linearity of relationship
+
+According to Figure 6, the relationships between overall quality score and flavor score appeared to be linear for all four processing methods.
+
+
+### Independence of residuals
+
+The data was provided by the Coffee Quality Institute, and they did not provide enough information about their sampling methods to be sure that each observation is independent from each other. As a result, we are not able to verify this condition. 
+
+
+### Normality of residuals
+
+```{r, fig.cap = "Figure 7: Distribution of Residuals for All Coffee Samples", fig.align = "center"}
+# Code to visualize the distribution of the residuals:
+coffee_regression_points <- get_regression_points(parallel_slopes_model)
+ggplot(data = coffee_regression_points, mapping = aes(x = residual)) +
+  geom_histogram(color = "white", bins = 24) + 
+  labs(title = "Distribution of Residuals for All Coffee Samples")
+```
+ 
+According to Figure 7, the residuals are roughly normally distributed.
+
+
+### Equality of variance
+
+```{r, fig.cap = "Figure 8: Scatterplots of variance of residuals across flavor score", fig.align = "center"}
+ggplot(coffee_regression_points, aes(x = flavor, y = residual, color = processing_method)) +
+  geom_point() +
+  labs(x = "Flavor Score ", y = "Residual", title = "Scatterplots of variance of residuals across flavor score") +
+  geom_hline(yintercept = 0, col = "blue", size = 1)
+```
+
+```{r, fig.cap = "Figure 9: Boxplot of residuals for each processing method", fig.align = "center"}
+# Code to visualize the relationship between the residuals and your
+# categorical explanatory/categorical variable:
+ggplot(data = coffee_regression_points, mapping = aes(x = factor(processing_method), y = residual)) +
+  geom_boxplot() + 
+  geom_hline(yintercept = 0, col = "blue", size = 1) +
+  labs(x = "Processing Method", y = "Residuals", title = "Boxplot of residuals for each processing method") +
+  coord_flip()
+
+```
+
+Figure 8 contains a scatterplot of residuals across the numerical explanatory variable, flavor score, colored by the four processing methods. In our opinion, the variance of the residuals is not equal across all values of the flavor score. It appears that the residuals vary less as flavor score increases.
+
+Figure 9 was constructed to examine the variance of residuals across the categorical explanatory variable, processing method. In our opinion, the variance of residuals is not equal across all categories of processing methods. For example, the pulped natural/honey processing method has a small amount of variance because the boxplot spans a narrow range and has no outliers. In contrast, the washed/wet processing method spans a wider range and has many outliers.
+
+
+
+***
+
+
+
+# Discussion 
+
+## Conclusions
+
+We found that there is a significant positive relationship between our numerical explanatory variable, flavor score, and our outcome variable, overall quality score. This means that when flavor score increases, the overall quality score increases as well. However, there does not appear to be a significant difference between the four processing methods, which is our categorical explanatory variable. The boxplots of the relationship between processing methods and overall quality score (Figure 3) show very similar medians. Additionally, the regression lines for each processing method in the parallel slopes model (Figure 6) are almost on top of each other, so the intercepts for each line are very similar. 
+
+To summarize, the overall quality score tends to increase when the flavor score increases, but does not change much when the processing method changes. The positive relationship between flavor score and overall quality score makes sense because flavor score is a component in calculating the overall quality score. We were surprised that the processing method does not make a difference in overall quality score since each processing method has unique characteristics that result in differences in flavor^[[Coffee Processing Methods](https://beannbeancoffee.com/blogs/beansider/coffee-processing-methods). Bean & Bean Coffee Roasters. January 18, 2021.].
+
+
+
+## Limitations
+
+There were several limitations to the analysis. First, the project only tested two explanatory variables (flavor score and processing method), but there may be more confounding variables that influence the overall quality score of coffee, such as species of coffee. Therefore, a low flavor score or a certain processing method does not necessarily indicate a low overall quality score. Second, because the data was collected in January 2018^[[GitHub for coffee dataset](https://github.com/jldbc/coffee-quality-database)], the results may not be applicable to coffee served more recently, such as this year. Third, we did not meet two of the LINE conditions for inference for regression to be valid. We were able to verify the linearity of the relationship between the variables and the normality of the residuals. However, we were not able to verify the independence of the residuals, and we did not think the variance of the residuals was equal. Therefore, we can only view our results as preliminary.
+
+
+
+## Further questions
+
+There are many factors that affect the quality of coffee, and the Coffee Ratings dataset includes many other variables that would be interesting to use in future analyses. 
+
+To determine the total cup points (overall quality score) of a coffee sample, coffee graders assign separate scores for multiple coffee attributes in a process called "cupping", which are then added together to get the total cup points score^[[Cupping Protocols](http://www.scaa.org/?page=resources&d=cupping-protocols&source=post_page---------------------------). Specialty Coffee Association of America.]. Flavor, our numerical explanatory variable, is one of the coffee attributes used in this process. In future analyses, we could look at the other attributes that contribute to the total cup points---such as the aftertaste, acidity, and sweetness---to use as numerical explanatory variables. We already know that the relationships should be positive since these are added up to calculate the total cup points, but it could be interesting to compare the slopes for each variable to see which attributes have the largest effect on the total cup points.
+
+Alternatively, we could look at numerical variables from the coffee's green analysis, which is the evaluation of the unroasted coffee beans^[[Green Coffee](https://www.emedicinehealth.com/green_coffee/vitamins-supplements.htm). eMedicineHealth. June 14, 2021.]. Some of these variables include moisture and the number of Category One or Category Two defects^[[Green Grading Coffee](https://www.cropster.com/news/article/green-grading-coffee/). Cropster. January 11, 2022.]. Since these variables are not directly added into the total cup points, it would be interesting to see what the relationship between these variables and the total cup points may look like.
+
+Lastly, we could look at different categorical variables such as the country of origin. The original dataset includes 36 countries of origin. In fact, we originally wanted to use the country of origin as the categorical variable in our analysis, but decided against it because 36 levels was more than we were able to cover with this project. This could be an interesting analysis since each country has differences in climate and coffee processing technology, which affects the flavor and other attributes of the coffee^[Töre, Özgür. [Coffee Beans From Different Countries: Main Differences](https://ftnnews.com/other-news/41236-coffee-beans-from-different-countries-main-differences). ftnNEWS. February 16, 2021.]. 
+
+
+
+***
+
+
+
+# Honor code
+
+## Project peers
+
+Name all people who contributed in any way to this project (other than groupmates, Prof. Kim, and Beth Brown): 
+
+No additional people aside from the group members and instructors contributed to this project.
+
+## Code sources
+
+List any sources for coding matters you consulted in bullet point form (other than SDS 220 materials).
+
+1. [Reducing plot title text size in ggplot2](https://stackoverflow.com/questions/2631780/r-ggplot2-can-i-set-the-plot-title-to-wrap-around-and-shrink-the-text-to-fit-t)
+
+
+## Citations and References
